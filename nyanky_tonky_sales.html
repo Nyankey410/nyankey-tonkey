@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Nyankey Tonkey — 売上管理</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAn_-ZGE4ybfmUQhsyAHb1Gq4I1QxL9ESo",
+  authDomain: "nyankey-abcb7.firebaseapp.com",
+  databaseURL: "https://nyankey-abcb7-default-rtdb.firebaseio.com",
+  projectId: "nyankey-abcb7",
+  storageBucket: "nyankey-abcb7.firebasestorage.app",
+  messagingSenderId: "713089385697",
+  appId: "1:713089385697:web:43112e750255a0b00c23a0"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// Expose to global scope for non-module scripts
+window._fbDb = db;
+window._fbRef = ref;
+window._fbSet = set;
+window._fbOnValue = onValue;
+window._fbOff = off;
+window._firebaseReady = true;
+window.dispatchEvent(new Event('firebaseReady'));
+</script>
+<style>
+  :root {
+    --ink: #1a1209;
+    --paper: #faf5ec;
+    --spice: #c45c1a;
+    --turmeric: #e8a020;
+    --cardamom: #5a7a52;
+    --smoke: #8a7a68;
+    --cream: #f0e8d8;
+    --border: #d4c4a8;
+    --red: #c0392b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* Texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23c4a882' opacity='0.15'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; padding-bottom: 100px; }
+
+  /* Header */
+  header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 18px 20px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .brand {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--turmeric);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  .header-title {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+  }
+
+  .month-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 6px 10px;
+  }
+
+  .month-nav button {
+    background: none;
+    border: none;
+    color: var(--paper);
+    font-size: 18px;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+
+  .month-nav button:hover { opacity: 1; }
+
+  #monthLabel {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--turmeric);
+    min-width: 70px;
+    text-align: center;
+  }
+
+  /* Monthly summary bar */
+  .summary-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .summary-item {
+    background: var(--cream);
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .summary-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--smoke);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .summary-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .summary-value.positive { color: var(--cardamom); }
+  .summary-value.negative { color: var(--red); }
+  .summary-value.spice { color: var(--spice); }
+
+  /* Day list */
+  .day-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+  .day-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: box-shadow 0.15s;
+  }
+
+  .day-card.today { border-color: var(--spice); border-width: 2px; }
+  .day-card.future { opacity: 0.45; }
+  .day-card.empty-day { background: var(--cream); }
+
+  .day-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    gap: 10px;
+    user-select: none;
+  }
+
+  .day-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1;
+    min-width: 32px;
+  }
+
+  .day-meta { flex: 1; }
+
+  .day-weekday {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--smoke);
+  }
+
+  .day-weekday.sat { color: #2980b9; }
+  .day-weekday.sun { color: var(--red); }
+
+  .day-total {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    text-align: right;
+  }
+
+  .day-total.has-data { color: var(--spice); }
+  .day-total.no-data { color: var(--border); font-size: 13px; }
+
+  .chevron {
+    color: var(--border);
+    font-size: 12px;
+    transition: transform 0.2s;
+  }
+
+  .day-card.open .chevron { transform: rotate(90deg); }
+
+  /* Day detail form */
+  .day-detail {
+    display: none;
+    padding: 0 14px 14px;
+    border-top: 1px solid var(--cream);
+    animation: slideDown 0.15s ease-out;
+  }
+
+  .day-card.open .day-detail { display: block; }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .input-section { margin-bottom: 12px; }
+
+  .input-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--smoke);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    margin-top: 10px;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .input-label {
+    font-size: 12px;
+    color: var(--smoke);
+    min-width: 80px;
+    flex-shrink: 0;
+  }
+
+  .input-field {
+    flex: 1;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--ink);
+    text-align: right;
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+
+  .input-field:focus {
+    border-color: var(--spice);
+    background: white;
+  }
+
+  .input-unit {
+    font-size: 11px;
+    color: var(--smoke);
+    min-width: 14px;
+  }
+
+  .subtotal-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-top: 1px dashed var(--border);
+    margin-top: 4px;
+  }
+
+  .subtotal-label { font-size: 11px; font-weight: 700; color: var(--smoke); }
+  .subtotal-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--spice);
+  }
+
+  .save-btn {
+    width: 100%;
+    background: var(--spice);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  .save-btn:active { transform: scale(0.98); background: #a34a12; }
+  .save-btn.saved { background: var(--cardamom); }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: var(--ink);
+    display: flex;
+    border-top: 2px solid var(--turmeric);
+  }
+
+  .nav-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    padding: 14px 8px 18px;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.15s;
+  }
+
+  .nav-btn.active { color: var(--turmeric); }
+  .nav-btn:hover { color: rgba(255,255,255,0.8); }
+  .nav-icon { font-size: 18px; }
+
+  /* Export panel */
+  .panel {
+    display: none;
+    padding: 20px 16px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .panel.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--smoke);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .export-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .export-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .export-desc {
+    font-size: 12px;
+    color: var(--smoke);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .export-btn {
+    width: 100%;
+    background: var(--ink);
+    color: var(--turmeric);
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .export-btn:active { transform: scale(0.98); opacity: 0.85; }
+
+  /* Monthly stats panel */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 12px;
+  }
+
+  .stat-card.full { grid-column: 1 / -1; }
+
+  .stat-card-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--smoke);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .stat-card-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .stat-card-value.green { color: var(--cardamom); }
+  .stat-card-value.red { color: var(--red); }
+  .stat-card-value.spice { color: var(--spice); }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--turmeric);
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 200;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="header-top">
+      <div>
+        <div class="brand">UMAMI SPICE CURRY</div>
+        <div class="header-title">Nyankey Tonkey 売上管理</div>
+      </div>
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)">◀</button>
+        <div id="monthLabel"></div>
+        <button onclick="changeMonth(1)">▶</button>
+      </div>
+    </div>
+    <div id="syncStatus" style="font-size:10px;letter-spacing:0.08em;color:var(--turmeric);margin-top:2px;text-align:right;">🔄 接続中...</div>
+  </header>
+
+  <div class="summary-bar">
+    <div class="summary-item">
+      <div class="summary-label">月間売上</div>
+      <div class="summary-value spice" id="sumSales">¥0</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">月間仕入</div>
+      <div class="summary-value" id="sumPurchase">¥0</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">粗利</div>
+      <div class="summary-value positive" id="sumProfit">¥0</div>
+    </div>
+  </div>
+
+  <!-- Panel: Daily -->
+  <div id="panelDaily" class="panel active">
+    <div class="day-list" id="dayList"></div>
+  </div>
+
+  <!-- Panel: Stats -->
+  <div id="panelStats" class="panel">
+    <div class="panel-title">📊 月次サマリー</div>
+    <div class="stats-grid">
+      <div class="stat-card full">
+        <div class="stat-card-label">売上合計</div>
+        <div class="stat-card-value spice" id="st-sales">¥0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">現金</div>
+        <div class="stat-card-value" id="st-cash">¥0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">カード</div>
+        <div class="stat-card-value" id="st-card">¥0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">電子マネー</div>
+        <div class="stat-card-value" id="st-emoney">¥0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">仕入合計</div>
+        <div class="stat-card-value" id="st-purchase">¥0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">雑費</div>
+        <div class="stat-card-value" id="st-misc">¥0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">交通費</div>
+        <div class="stat-card-value" id="st-transport">¥0</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="stats-grid">
+      <div class="stat-card full">
+        <div class="stat-card-label">粗利</div>
+        <div class="stat-card-value green" id="st-profit">¥0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">粗利率</div>
+        <div class="stat-card-value green" id="st-margin">0%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">営業日数</div>
+        <div class="stat-card-value" id="st-days">0日</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">日平均売上</div>
+        <div class="stat-card-value spice" id="st-avg">¥0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">食材原価率</div>
+        <div class="stat-card-value" id="st-foodcost">0%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel: Export -->
+  <div id="panelExport" class="panel">
+    <div class="panel-title">📤 エクスポート / インポート</div>
+    <div class="export-card">
+      <div class="export-title">📂 CSVインポート</div>
+      <div class="export-desc">以前のアプリからエクスポートしたCSVファイルを読み込み、Firebaseに一括登録します。</div>
+      <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importCSV(this)">
+      <button class="export-btn" style="background:var(--cardamom);" onclick="document.getElementById('csvFileInput').click()">📂 CSVファイルを選択</button>
+      <div id="importStatus" style="margin-top:8px;font-size:12px;color:var(--cardamom);display:none;"></div>
+    </div>
+    <div class="export-card">
+      <div class="export-title">Excel（日次売上・仕入れ）</div>
+      <div class="export-desc">表示中の月のデータをExcelファイルに出力します。経理管理表と同じ形式で保存されます。</div>
+      <button class="export-btn" onclick="exportExcel()">📥 Excelをダウンロード</button>
+    </div>
+    <div class="export-card">
+      <div class="export-title">CSV（全データ）</div>
+      <div class="export-desc">アプリに保存された全月のデータをCSV形式で出力します。</div>
+      <button class="export-btn" onclick="exportCSV()">📥 CSVをダウンロード</button>
+    </div>
+    <div class="export-card">
+      <div class="export-title">データのリセット</div>
+      <div class="export-desc">⚠️ 表示中の月のデータをすべて削除します。</div>
+      <button class="export-btn" style="background:#8a0000;" onclick="clearMonth()">🗑 この月のデータを削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="navDaily" onclick="switchTab('Daily')">
+    <span class="nav-icon">📋</span>日次入力
+  </button>
+  <button class="nav-btn" id="navStats" onclick="switchTab('Stats')">
+    <span class="nav-icon">📊</span>サマリー
+  </button>
+  <button class="nav-btn" id="navExport" onclick="switchTab('Export')">
+    <span class="nav-icon">📤</span>出力
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WEEKDAYS = ['日','月','火','水','木','金','土'];
+let currentYear, currentMonth;
+let data = {};
+
+function saveData() {
+  if (!window._fbDb) return;
+  const db = window._fbDb;
+  const fbRef = window._fbRef;
+  const fbSet = window._fbSet;
+  fbSet(fbRef(db, 'sales'), data)
+    .then(() => setStatus('✓ 同期済み', 'var(--cardamom)'))
+    .catch(() => setStatus('⚠ 保存失敗', 'var(--red)'));
+}
+
+function dateKey(y, m, d) {
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function formatYen(n) {
+  if (!n || n === 0) return '¥0';
+  return '¥' + Math.round(n).toLocaleString('ja-JP');
+}
+
+function daysInMonth(y, m) {
+  return new Date(y, m, 0).getDate();
+}
+
+function changeMonth(delta) {
+  currentMonth += delta;
+  if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+  if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+  render();
+}
+
+function render() {
+  const label = `${currentYear}/${String(currentMonth).padStart(2,'0')}`;
+  document.getElementById('monthLabel').textContent = label;
+
+  const today = new Date();
+  const todayStr = dateKey(today.getFullYear(), today.getMonth()+1, today.getDate());
+
+  const days = daysInMonth(currentYear, currentMonth);
+  const list = document.getElementById('dayList');
+  list.innerHTML = '';
+
+  let totalSales = 0, totalPurchase = 0;
+  let totalCash = 0, totalCard = 0, totalEmoney = 0;
+  let totalFood = 0, totalDrink = 0, totalMisc = 0, totalTransport = 0;
+  let activeDays = 0;
+
+  for (let d = 1; d <= days; d++) {
+    const key = dateKey(currentYear, currentMonth, d);
+    const dateObj = new Date(currentYear, currentMonth - 1, d);
+    const wd = dateObj.getDay();
+    const wdName = WEEKDAYS[wd];
+    const rec = data[key] || {};
+
+    const cash = parseFloat(rec.cash) || 0;
+    const card = parseFloat(rec.card) || 0;
+    const emoney = parseFloat(rec.emoney) || 0;
+    const food = parseFloat(rec.food) || 0;
+    const drink = parseFloat(rec.drink) || 0;
+    const misc = parseFloat(rec.misc) || 0;
+    const transport = parseFloat(rec.transport) || 0;
+    const sales = cash + card + emoney;
+    const purchase = food + drink + misc + transport;
+    const profit = sales - purchase;
+    const hasData = sales > 0 || purchase > 0;
+
+    totalSales += sales; totalPurchase += purchase;
+    totalCash += cash; totalCard += card; totalEmoney += emoney;
+    totalFood += food; totalDrink += drink; totalMisc += misc; totalTransport += transport;
+    if (hasData) activeDays++;
+
+    const isToday = key === todayStr;
+    const isFuture = key > todayStr;
+
+    const card_el = document.createElement('div');
+    card_el.className = `day-card${isToday ? ' today' : ''}${isFuture && !hasData ? ' future' : ''}`;
+    card_el.dataset.key = key;
+
+    card_el.innerHTML = `
+      <div class="day-header" onclick="toggleDay(this)">
+        <div class="day-date">${d}</div>
+        <div class="day-meta">
+          <div class="day-weekday ${wd===6?'sat':wd===0?'sun':''}">${wdName}曜日${isToday ? ' 　今日' : ''}</div>
+        </div>
+        <div class="day-total ${hasData ? 'has-data' : 'no-data'}">${hasData ? formatYen(sales) : '未入力'}</div>
+        <div class="chevron">›</div>
+      </div>
+      <div class="day-detail">
+        <div class="input-section-label">💰 売上</div>
+        <div class="input-row">
+          <span class="input-label">現金</span>
+          <input class="input-field" type="number" inputmode="numeric" data-field="cash" value="${cash || ''}" placeholder="0">
+          <span class="input-unit">円</span>
+        </div>
+        <div class="input-row">
+          <span class="input-label">カード</span>
+          <input class="input-field" type="number" inputmode="numeric" data-field="card" value="${card || ''}" placeholder="0">
+          <span class="input-unit">円</span>
+        </div>
+        <div class="input-row">
+          <span class="input-label">電子マネー</span>
+          <input class="input-field" type="number" inputmode="numeric" data-field="emoney" value="${emoney || ''}" placeholder="0">
+          <span class="input-unit">円</span>
+        </div>
+        <div class="subtotal-row">
+          <span class="subtotal-label">売上計</span>
+          <span class="subtotal-value" id="st-${key}-sales">${formatYen(sales)}</span>
+        </div>
+
+        <div class="input-section-label">🛒 仕入れ・経費</div>
+        <div class="input-row">
+          <span class="input-label">食材</span>
+          <input class="input-field" type="number" inputmode="numeric" data-field="food" value="${food || ''}" placeholder="0">
+          <span class="input-unit">円</span>
+        </div>
+        <div class="input-row">
+          <span class="input-label">飲料</span>
+          <input class="input-field" type="number" inputmode="numeric" data-field="drink" value="${drink || ''}" placeholder="0">
+          <span class="input-unit">円</span>
+        </div>
+        <div class="input-row">
+          <span class="input-label">雑費</span>
+          <input class="input-field" type="number" inputmode="numeric" data-field="misc" value="${misc || ''}" placeholder="0">
+          <span class="input-unit">円</span>
+        </div>
+        <div class="input-row">
+          <span class="input-label">交通費</span>
+          <input class="input-field" type="number" inputmode="numeric" data-field="transport" value="${transport || ''}" placeholder="0">
+          <span class="input-unit">円</span>
+        </div>
+        <div class="subtotal-row">
+          <span class="subtotal-label">仕入・経費計</span>
+          <span class="subtotal-value" id="st-${key}-purchase">${formatYen(purchase)}</span>
+        </div>
+
+        <button class="save-btn" onclick="saveDay('${key}', this)">保存する</button>
+      </div>
+    `;
+
+    // Live update subtotals
+    card_el.querySelectorAll('.input-field').forEach(inp => {
+      inp.addEventListener('input', () => updateSubtotals(key, card_el));
+    });
+
+    list.appendChild(card_el);
+
+    // Open today automatically
+    if (isToday) {
+      card_el.classList.add('open');
+    }
+  }
+
+  // Update header summary
+  const totalProfit = totalSales - totalPurchase;
+  document.getElementById('sumSales').textContent = formatYen(totalSales);
+  document.getElementById('sumPurchase').textContent = formatYen(totalPurchase);
+  const profitEl = document.getElementById('sumProfit');
+  profitEl.textContent = formatYen(totalProfit);
+  profitEl.className = 'summary-value ' + (totalProfit >= 0 ? 'positive' : 'negative');
+
+  // Stats panel
+  document.getElementById('st-sales').textContent = formatYen(totalSales);
+  document.getElementById('st-cash').textContent = formatYen(totalCash);
+  document.getElementById('st-card').textContent = formatYen(totalCard);
+  document.getElementById('st-emoney').textContent = formatYen(totalEmoney);
+  document.getElementById('st-purchase').textContent = formatYen(totalPurchase);
+  document.getElementById('st-misc').textContent = formatYen(totalMisc);
+  document.getElementById('st-transport').textContent = formatYen(totalTransport);
+  document.getElementById('st-profit').textContent = formatYen(totalProfit);
+  document.getElementById('st-margin').textContent = totalSales > 0 ? (totalProfit / totalSales * 100).toFixed(1) + '%' : '0%';
+  document.getElementById('st-days').textContent = activeDays + '日';
+  document.getElementById('st-avg').textContent = activeDays > 0 ? formatYen(totalSales / activeDays) : '¥0';
+  document.getElementById('st-foodcost').textContent = totalSales > 0 ? (totalPurchase / totalSales * 100).toFixed(1) + '%' : '0%';
+}
+
+function updateSubtotals(key, cardEl) {
+  const vals = {};
+  cardEl.querySelectorAll('.input-field').forEach(inp => {
+    vals[inp.dataset.field] = parseFloat(inp.value) || 0;
+  });
+  const sales = (vals.cash || 0) + (vals.card || 0) + (vals.emoney || 0);
+  const purchase = (vals.food || 0) + (vals.drink || 0) + (vals.misc || 0) + (vals.transport || 0);
+  const stSales = cardEl.querySelector(`#st-${key}-sales`);
+  const stPurchase = cardEl.querySelector(`#st-${key}-purchase`);
+  if (stSales) stSales.textContent = formatYen(sales);
+  if (stPurchase) stPurchase.textContent = formatYen(purchase);
+}
+
+function toggleDay(headerEl) {
+  const card = headerEl.closest('.day-card');
+  card.classList.toggle('open');
+}
+
+function saveDay(key, btn) {
+  const card = btn.closest('.day-card');
+  const vals = {};
+  card.querySelectorAll('.input-field').forEach(inp => {
+    vals[inp.dataset.field] = parseFloat(inp.value) || 0;
+  });
+  data[key] = vals;
+  saveData();
+  btn.textContent = '✓ 保存しました';
+  btn.classList.add('saved');
+  setTimeout(() => {
+    btn.textContent = '保存する';
+    btn.classList.remove('saved');
+    render();
+    // Re-open the card
+    const newCard = document.querySelector(`[data-key="${key}"]`);
+    if (newCard) newCard.classList.add('open');
+  }, 800);
+  showToast('保存しました');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function switchTab(tab) {
+  ['Daily','Stats','Export'].forEach(t => {
+    document.getElementById(`panel${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`nav${t}`).classList.toggle('active', t === tab);
+  });
+}
+
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  const days = daysInMonth(currentYear, currentMonth);
+  const weekdays = ['日','月','火','水','木','金','土'];
+  
+  const rows = [['日付','曜日','現金売上','カード売上','電子マネー','売上合計','食材仕入れ','飲料仕入れ','雑費','交通費','仕入・経費計','粗利']];
+  let ts=0, tp=0, tc=0, tcd=0, te=0, tf=0, td=0, tm=0, tt=0;
+  
+  for (let d = 1; d <= days; d++) {
+    const key = dateKey(currentYear, currentMonth, d);
+    const rec = data[key] || {};
+    const wd = new Date(currentYear, currentMonth-1, d).getDay();
+    const cash = parseFloat(rec.cash) || 0;
+    const card = parseFloat(rec.card) || 0;
+    const emoney = parseFloat(rec.emoney) || 0;
+    const food = parseFloat(rec.food) || 0;
+    const drink = parseFloat(rec.drink) || 0;
+    const misc = parseFloat(rec.misc) || 0;
+    const transport = parseFloat(rec.transport) || 0;
+    const sales = cash + card + emoney;
+    const purchase = food + drink + misc + transport;
+    ts+=sales; tp+=purchase; tc+=cash; tcd+=card; te+=emoney; tf+=food; td+=drink; tm+=misc; tt+=transport;
+    rows.push([`${currentMonth}/${d}`, weekdays[wd]+'曜', cash, card, emoney, sales, food, drink, misc, transport, purchase, sales-purchase]);
+  }
+  rows.push(['月計','', tc, tcd, te, ts, tf, td, tm, tt, tp, ts-tp]);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:8},{wch:6},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws, '日次売上・仕入れ');
+  XLSX.writeFile(wb, `売上管理_${currentYear}${String(currentMonth).padStart(2,'0')}.xlsx`);
+  showToast('Excelを出力しました');
+}
+
+function exportCSV() {
+  const lines = ['日付,曜日,現金売上,カード売上,電子マネー,売上合計,食材仕入れ,飲料仕入れ,雑費,交通費,仕入・経費計,粗利'];
+  const weekdays = ['日','月','火','水','木','金','土'];
+  
+  const keys = Object.keys(data).sort();
+  keys.forEach(key => {
+    const [y, m, d] = key.split('-').map(Number);
+    const rec = data[key];
+    const wd = new Date(y, m-1, d).getDay();
+    const cash = parseFloat(rec.cash)||0;
+    const card = parseFloat(rec.card)||0;
+    const emoney = parseFloat(rec.emoney)||0;
+    const food = parseFloat(rec.food)||0;
+    const drink = parseFloat(rec.drink)||0;
+    const misc = parseFloat(rec.misc)||0;
+    const transport = parseFloat(rec.transport)||0;
+    const sales = cash+card+emoney;
+    const purchase = food+drink+misc+transport;
+    lines.push(`${key},${weekdays[wd]},${cash},${card},${emoney},${sales},${food},${drink},${misc},${transport},${purchase},${sales-purchase}`);
+  });
+
+  const blob = new Blob(['\uFEFF'+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '売上管理_全データ.csv';
+  a.click();
+  showToast('CSVを出力しました');
+}
+
+function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('importStatus');
+  status.style.display = 'block';
+  status.textContent = '読み込み中...';
+  status.style.color = 'var(--turmeric)';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result.replace(/^\uFEFF/, ''); // BOM除去
+      const lines = text.trim().split('\n');
+      const headers = lines[0].split(',');
+      let count = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',');
+        if (cols.length < 2) continue;
+        const dateStr = cols[0].trim(); // YYYY-MM-DD
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+
+        // 列マッピング: 日付,曜日,現金,カード,電子マネー,売上計,食材,飲料,雑費,交通費,仕入計,粗利
+        const rec = {
+          cash:      parseFloat(cols[2]) || 0,
+          card:      parseFloat(cols[3]) || 0,
+          emoney:    parseFloat(cols[4]) || 0,
+          food:      parseFloat(cols[6]) || 0,
+          drink:     parseFloat(cols[7]) || 0,
+          misc:      parseFloat(cols[8]) || 0,
+          transport: parseFloat(cols[9]) || 0,
+        };
+        // 全て0なら無視
+        const total = Object.values(rec).reduce((a,b) => a+b, 0);
+        if (total === 0) continue;
+
+        data[dateStr] = rec;
+        count++;
+      }
+
+      // Firebaseに保存
+      saveData();
+      status.textContent = `✓ ${count}件のデータをインポートしました`;
+      status.style.color = 'var(--cardamom)';
+      showToast(`${count}件をインポートしました`);
+      render();
+    } catch(err) {
+      status.textContent = '⚠ 読み込みに失敗しました。CSVの形式を確認してください。';
+      status.style.color = 'var(--red)';
+    }
+    input.value = ''; // リセット
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function clearMonth() {
+  if (!confirm(`${currentYear}年${currentMonth}月のデータをすべて削除しますか？`)) return;
+  const days = daysInMonth(currentYear, currentMonth);
+  for (let d = 1; d <= days; d++) {
+    delete data[dateKey(currentYear, currentMonth, d)];
+  }
+  saveData();
+  render();
+  showToast('削除しました');
+}
+
+// Init
+const now = new Date();
+currentYear = now.getFullYear();
+currentMonth = now.getMonth() + 1;
+
+// Status indicator
+function setStatus(msg, color) {
+  const el = document.getElementById('syncStatus');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--turmeric)'; }
+}
+
+function initFirebase() {
+  const db = window._fbDb;
+  const fbRef = window._fbRef;
+  const fbOnValue = window._fbOnValue;
+
+  setStatus('🔄 同期中...', 'var(--turmeric)');
+
+  const salesRef = fbRef(db, 'sales');
+  fbOnValue(salesRef, (snapshot) => {
+    data = snapshot.val() || {};
+    render();
+    setStatus('✓ 同期済み', 'var(--cardamom)');
+  }, (error) => {
+    setStatus('⚠ オフライン', 'var(--red)');
+    render();
+  });
+}
+
+if (window._firebaseReady) {
+  initFirebase();
+} else {
+  window.addEventListener('firebaseReady', initFirebase);
+}
+</script>
+</body>
+</html>

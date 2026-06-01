@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nyankey Tonkey — 売上管理 Desktop</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;700&family=DM+Mono:wght@300;400;500&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAn_-ZGE4ybfmUQhsyAHb1Gq4I1QxL9ESo",
+  authDomain: "nyankey-abcb7.firebaseapp.com",
+  databaseURL: "https://nyankey-abcb7-default-rtdb.firebaseio.com",
+  projectId: "nyankey-abcb7",
+  storageBucket: "nyankey-abcb7.firebasestorage.app",
+  messagingSenderId: "713089385697",
+  appId: "1:713089385697:web:43112e750255a0b00c23a0"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+window._fbDb = db;
+window._fbRef = ref;
+window._fbSet = set;
+window._fbOnValue = onValue;
+window._firebaseReady = true;
+window.dispatchEvent(new Event('firebaseReady'));
+</script>
+<style>
+:root {
+  --bg: #f7f2ea;
+  --surface: #ffffff;
+  --sidebar-bg: #1c1408;
+  --ink: #1c1408;
+  --smoke: #7a6a54;
+  --border: #ddd4c0;
+  --spice: #c45c1a;
+  --turmeric: #e8a020;
+  --cardamom: #4a7244;
+  --cream: #f0e8d8;
+  --red: #b83222;
+  --blue: #2563a8;
+  --row-hover: #fdf8f2;
+  --row-alt: #faf6ef;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: var(--sidebar-bg);
+  color: #e8ddc8;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar-logo {
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.logo-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 300;
+  letter-spacing: 0.25em;
+  color: var(--turmeric);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.logo-main {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #f5ede0;
+  line-height: 1.2;
+}
+
+/* Month navigator */
+.month-nav {
+  padding: 20px 16px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.month-nav-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.month-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.month-arrow {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #e8ddc8;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.month-arrow:hover { background: rgba(255,255,255,0.14); }
+
+#monthDisplay {
+  font-family: 'DM Mono', monospace;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--turmeric);
+  flex: 1;
+  text-align: center;
+}
+
+/* Sidebar summary cards */
+.sidebar-stats {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.stat-block {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.stat-block-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.stat-block-value {
+  font-family: 'DM Mono', monospace;
+  font-size: 16px;
+  font-weight: 500;
+  color: #f0e8d8;
+}
+
+.stat-block-value.spice { color: var(--turmeric); }
+.stat-block-value.green { color: #7ec47a; }
+.stat-block-value.red { color: #f08080; }
+
+/* Nav links */
+.sidebar-nav {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.45);
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+.nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8); }
+.nav-item.active { background: rgba(232,160,32,0.15); color: var(--turmeric); }
+.nav-icon { font-size: 15px; width: 20px; text-align: center; }
+
+.sidebar-footer {
+  padding: 14px 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 10px;
+  color: rgba(255,255,255,0.2);
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* ── Main area ── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.topbar-title {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.03em;
+}
+
+.topbar-actions { display: flex; gap: 8px; }
+
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+  letter-spacing: 0.03em;
+}
+
+.btn-primary {
+  background: var(--spice);
+  color: white;
+}
+.btn-primary:hover { background: #a34a12; }
+
+.btn-secondary {
+  background: var(--cream);
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: var(--border); }
+
+/* Content panels */
+.content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.panel {
+  display: none;
+  height: 100%;
+  overflow: hidden;
+}
+.panel.active { display: flex; flex-direction: column; }
+
+/* ── Daily Table Panel ── */
+.table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead th {
+  background: var(--sidebar-bg);
+  color: #c8b898;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  text-align: right;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+thead th:first-child { text-align: left; border-radius: 8px 0 0 0; }
+thead th:last-child { border-radius: 0 8px 0 0; }
+
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+tbody tr:nth-child(even) { background: var(--row-alt); }
+tbody tr:hover { background: var(--row-hover); }
+tbody tr.today-row { background: #fff8f0 !important; outline: 2px solid var(--spice); outline-offset: -1px; }
+tbody tr.future-row { opacity: 0.4; }
+tbody tr.sat-row td:first-child, tbody tr.sat-row td:nth-child(2) { color: var(--blue); }
+tbody tr.sun-row td:first-child, tbody tr.sun-row td:nth-child(2) { color: var(--red); }
+
+td {
+  padding: 0;
+  vertical-align: middle;
+}
+
+.td-date {
+  padding: 6px 12px;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  width: 80px;
+}
+
+.td-wd {
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  width: 40px;
+  text-align: center;
+}
+
+.td-input {
+  padding: 3px 4px;
+  width: 100px;
+}
+
+input.num-input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: right;
+  outline: none;
+  transition: all 0.12s;
+}
+input.num-input:focus {
+  background: white;
+  border-color: var(--spice);
+  box-shadow: 0 0 0 2px rgba(196,92,26,0.12);
+}
+input.num-input::placeholder { color: var(--border); }
+
+.td-calc {
+  padding: 6px 12px;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.td-calc.sales { color: var(--spice); }
+.td-calc.purchase { color: var(--smoke); }
+.td-calc.profit-pos { color: var(--cardamom); font-weight: 700; }
+.td-calc.profit-neg { color: var(--red); font-weight: 700; }
+.td-calc.zero { color: var(--border); }
+
+/* Section headers in table */
+.section-header td {
+  background: var(--cream);
+  padding: 5px 12px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--smoke);
+}
+
+/* Total row */
+tfoot tr {
+  background: var(--sidebar-bg) !important;
+  outline: none;
+}
+tfoot td {
+  padding: 10px 12px;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: #c8b898;
+  text-align: right;
+}
+tfoot td:first-child { text-align: left; color: var(--turmeric); font-weight: 700; letter-spacing: 0.08em; }
+tfoot td.ft-sales { color: var(--turmeric); font-weight: 700; }
+tfoot td.ft-profit { color: #7ec47a; font-weight: 700; }
+tfoot td.ft-profit-neg { color: #f08080; font-weight: 700; }
+
+/* Column group labels */
+.col-group-row th {
+  background: #2a1e0c;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: rgba(255,255,255,0.25);
+  padding: 4px 12px;
+  text-align: center;
+}
+.col-group-row th.cg-sales { color: rgba(232,160,32,0.6); }
+.col-group-row th.cg-purchase { color: rgba(255,255,255,0.3); }
+.col-group-row th.cg-result { color: rgba(122,194,122,0.6); }
+
+/* ── Stats Panel ── */
+.stats-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.stats-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+
+.stats-card.wide { grid-column: span 2; }
+.stats-card.full { grid-column: span 4; }
+
+.stats-card-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--smoke);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.stats-card-value {
+  font-family: 'DM Mono', monospace;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.stats-card-value.spice { color: var(--spice); }
+.stats-card-value.green { color: var(--cardamom); }
+.stats-card-value.red { color: var(--red); }
+
+.stats-section-title {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--smoke);
+  letter-spacing: 0.06em;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Export Panel ── */
+.export-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  align-content: start;
+}
+
+.export-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.export-card-icon { font-size: 28px; margin-bottom: 12px; }
+.export-card-title { font-family: 'Shippori Mincho', serif; font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.export-card-desc { font-size: 12px; color: var(--smoke); line-height: 1.6; margin-bottom: 16px; }
+
+.btn-export {
+  width: 100%;
+  padding: 10px;
+  background: var(--ink);
+  color: var(--turmeric);
+  border: none;
+  border-radius: 8px;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn-export:hover { opacity: 0.85; }
+.btn-export:active { transform: scale(0.98); }
+.btn-export.danger { background: #8a0000; color: #ffcccc; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--ink);
+  color: var(--turmeric);
+  padding: 10px 22px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0;
+  transition: all 0.25s;
+  pointer-events: none;
+  z-index: 999;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Save indicator */
+.save-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--spice);
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  vertical-align: middle;
+}
+.save-dot.active { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-sub">UMAMI SPICE CURRY</div>
+    <div class="logo-main">Nyankey Tonkey<br>売上管理</div>
+  </div>
+
+  <div class="month-nav">
+    <div class="month-nav-label">対象月</div>
+    <div class="month-controls">
+      <button class="month-arrow" onclick="changeMonth(-1)">◀</button>
+      <div id="monthDisplay">—</div>
+      <button class="month-arrow" onclick="changeMonth(1)">▶</button>
+    </div>
+  </div>
+
+  <div class="sidebar-stats">
+    <div class="stat-block">
+      <div class="stat-block-label">月間売上</div>
+      <div class="stat-block-value spice" id="sb-sales">¥0</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-block-label">仕入・経費</div>
+      <div class="stat-block-value" id="sb-purchase">¥0</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-block-label">粗利</div>
+      <div class="stat-block-value green" id="sb-profit">¥0</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-item active" id="nav-daily" onclick="switchPanel('daily')">
+      <span class="nav-icon">📋</span> 日次入力
+    </div>
+    <div class="nav-item" id="nav-stats" onclick="switchPanel('stats')">
+      <span class="nav-icon">📊</span> サマリー
+    </div>
+    <div class="nav-item" id="nav-export" onclick="switchPanel('export')">
+      <span class="nav-icon">📤</span> エクスポート
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div id="syncStatus" style="margin-bottom:4px;font-weight:700;">🔄 接続中...</div>
+    データはFirebaseに保存されます
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbarTitle">日次売上・仕入れ入力</div>
+    <div class="topbar-actions">
+      <button class="btn btn-secondary" onclick="exportExcel()">📥 Excel出力</button>
+      <button class="btn btn-primary" onclick="saveAll()">💾 すべて保存 <span class="save-dot" id="saveDot"></span></button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Daily Panel -->
+    <div class="panel active" id="panel-daily">
+      <div class="table-wrapper">
+        <table id="mainTable">
+          <thead>
+            <tr class="col-group-row">
+              <th colspan="2"></th>
+              <th colspan="4" class="cg-sales">── 売上 ──</th>
+              <th colspan="5" class="cg-purchase">── 仕入れ・経費 ──</th>
+              <th colspan="2" class="cg-result">── 収支 ──</th>
+            </tr>
+            <tr>
+              <th style="text-align:left">日付</th>
+              <th style="text-align:center">曜</th>
+              <th>現金</th>
+              <th>カード</th>
+              <th>電子マネー</th>
+              <th>売上計</th>
+              <th>食材</th>
+              <th>飲料</th>
+              <th>雑費</th>
+              <th>交通費</th>
+              <th>仕入計</th>
+              <th>粗利</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+          <tfoot id="tableFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Stats Panel -->
+    <div class="panel" id="panel-stats">
+      <div class="stats-content">
+        <div class="stats-section-title">売上サマリー</div>
+        <div class="stats-grid" style="margin-bottom:28px">
+          <div class="stats-card wide">
+            <div class="stats-card-label">月間売上合計</div>
+            <div class="stats-card-value spice" id="st-sales">¥0</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">現金売上</div>
+            <div class="stats-card-value" id="st-cash">¥0</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">カード売上</div>
+            <div class="stats-card-value" id="st-card">¥0</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">電子マネー</div>
+            <div class="stats-card-value" id="st-emoney">¥0</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">営業日数</div>
+            <div class="stats-card-value" id="st-days">0日</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">日平均売上</div>
+            <div class="stats-card-value spice" id="st-avg">¥0</div>
+          </div>
+        </div>
+
+        <div class="stats-section-title">仕入れ・経費サマリー</div>
+        <div class="stats-grid" style="margin-bottom:28px">
+          <div class="stats-card wide">
+            <div class="stats-card-label">仕入れ・経費合計</div>
+            <div class="stats-card-value" id="st-purchase">¥0</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">食材仕入れ</div>
+            <div class="stats-card-value" id="st-food">¥0</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">飲料仕入れ</div>
+            <div class="stats-card-value" id="st-drink">¥0</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">雑費</div>
+            <div class="stats-card-value" id="st-misc">¥0</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">交通費</div>
+            <div class="stats-card-value" id="st-transport">¥0</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">食材原価率</div>
+            <div class="stats-card-value" id="st-foodcost">0%</div>
+          </div>
+        </div>
+
+        <div class="stats-section-title">損益サマリー</div>
+        <div class="stats-grid">
+          <div class="stats-card wide">
+            <div class="stats-card-label">粗利</div>
+            <div class="stats-card-value green" id="st-profit">¥0</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">粗利率</div>
+            <div class="stats-card-value green" id="st-margin">0%</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-card-label">仕入・経費率</div>
+            <div class="stats-card-value" id="st-costrate">0%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Panel -->
+    <div class="panel" id="panel-export">
+      <div class="export-content">
+        <div class="export-card">
+          <div class="export-card-icon">📂</div>
+          <div class="export-card-title">CSVインポート</div>
+          <div class="export-card-desc">以前のアプリからエクスポートしたCSVを読み込み、Firebaseに一括登録します。既存データとマージされます。</div>
+          <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importCSV(this)">
+          <button class="btn-export" style="background:var(--cardamom);color:white;" onclick="document.getElementById('csvFileInput').click()">📂 CSVファイルを選択</button>
+          <div id="importStatus" style="margin-top:8px;font-size:12px;color:var(--cardamom);display:none;"></div>
+        </div>
+        <div class="export-card">
+          <div class="export-card-icon">📊</div>
+          <div class="export-card-title">Excel（月次）</div>
+          <div class="export-card-desc">表示中の月の日次データをExcelファイルに出力します。全項目が列ごとに整理されます。</div>
+          <button class="btn-export" onclick="exportExcel()">📥 Excelをダウンロード</button>
+        </div>
+        <div class="export-card">
+          <div class="export-card-icon">📋</div>
+          <div class="export-card-title">CSV（全期間）</div>
+          <div class="export-card-desc">保存された全月のデータをCSV形式でまとめて出力します。会計ソフトへの取り込みに使えます。</div>
+          <button class="btn-export" onclick="exportCSV()">📥 CSVをダウンロード</button>
+        </div>
+        <div class="export-card">
+          <div class="export-card-icon">🗑</div>
+          <div class="export-card-title">月次データ削除</div>
+          <div class="export-card-desc">⚠️ 表示中の月のデータをブラウザから完全に削除します。この操作は元に戻せません。</div>
+          <button class="btn-export danger" onclick="clearMonth()">この月のデータを削除</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WEEKDAYS = ['日','月','火','水','木','金','土'];
+let currentYear, currentMonth;
+let data = {};
+let unsaved = false;
+
+function setStatus(msg, color) {
+  const el = document.getElementById('syncStatus');
+  if (el) { el.textContent = msg; el.style.color = color || 'rgba(232,160,32,0.8)'; }
+}
+
+function saveData() {
+  if (!window._fbDb) return;
+  window._fbSet(window._fbRef(window._fbDb, 'sales'), data)
+    .then(() => setStatus('✓ 同期済み', '#7ec47a'))
+    .catch(() => setStatus('⚠ 保存失敗', '#f08080'));
+}
+
+function dateKey(y, m, d) {
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function yen(n) {
+  if (!n) return '—';
+  return '¥' + Math.round(n).toLocaleString('ja-JP');
+}
+
+function yenOrZero(n) {
+  return '¥' + Math.round(n||0).toLocaleString('ja-JP');
+}
+
+function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
+function changeMonth(d) {
+  currentMonth += d;
+  if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+  if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+  render();
+}
+
+function render() {
+  document.getElementById('monthDisplay').textContent =
+    `${currentYear}/${String(currentMonth).padStart(2,'0')}`;
+
+  const today = new Date();
+  const todayStr = dateKey(today.getFullYear(), today.getMonth()+1, today.getDate());
+  const days = daysInMonth(currentYear, currentMonth);
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+
+  let ts=0, tpu=0, tc=0, tcd=0, te=0, tf=0, td=0, tm=0, ttr=0, tdays=0;
+
+  for (let d = 1; d <= days; d++) {
+    const key = dateKey(currentYear, currentMonth, d);
+    const rec = data[key] || {};
+    const wd = new Date(currentYear, currentMonth-1, d).getDay();
+    const wdName = WEEKDAYS[wd];
+    const isToday = key === todayStr;
+    const isFuture = key > todayStr;
+
+    const cash = parseFloat(rec.cash)||0;
+    const card = parseFloat(rec.card)||0;
+    const emoney = parseFloat(rec.emoney)||0;
+    const food = parseFloat(rec.food)||0;
+    const drink = parseFloat(rec.drink)||0;
+    const misc = parseFloat(rec.misc)||0;
+    const transport = parseFloat(rec.transport)||0;
+    const sales = cash + card + emoney;
+    const purchase = food + drink + misc + transport;
+    const profit = sales - purchase;
+    if (sales > 0 || purchase > 0) tdays++;
+
+    ts+=sales; tpu+=purchase; tc+=cash; tcd+=card; te+=emoney;
+    tf+=food; td+=drink; tm+=misc; ttr+=transport;
+
+    const cls = `${isToday?'today-row':''} ${isFuture&&!sales&&!purchase?'future-row':''} ${wd===6?'sat-row':''} ${wd===0?'sun-row':''}`;
+
+    const profitCls = profit > 0 ? 'profit-pos' : profit < 0 ? 'profit-neg' : 'zero';
+
+    const tr = document.createElement('tr');
+    tr.className = cls;
+    tr.dataset.key = key;
+    tr.innerHTML = `
+      <td class="td-date">${currentMonth}/${d}${isToday ? ' ●' : ''}</td>
+      <td class="td-wd">${wdName}</td>
+      <td class="td-input"><input class="num-input" type="number" inputmode="numeric" data-field="cash" value="${cash||''}" placeholder="0" onchange="markUnsaved()"></td>
+      <td class="td-input"><input class="num-input" type="number" inputmode="numeric" data-field="card" value="${card||''}" placeholder="0" onchange="markUnsaved()"></td>
+      <td class="td-input"><input class="num-input" type="number" inputmode="numeric" data-field="emoney" value="${emoney||''}" placeholder="0" onchange="markUnsaved()"></td>
+      <td class="td-calc sales" id="s-${key}">${sales ? yenOrZero(sales) : '—'}</td>
+      <td class="td-input"><input class="num-input" type="number" inputmode="numeric" data-field="food" value="${food||''}" placeholder="0" onchange="markUnsaved()"></td>
+      <td class="td-input"><input class="num-input" type="number" inputmode="numeric" data-field="drink" value="${drink||''}" placeholder="0" onchange="markUnsaved()"></td>
+      <td class="td-input"><input class="num-input" type="number" inputmode="numeric" data-field="misc" value="${misc||''}" placeholder="0" onchange="markUnsaved()"></td>
+      <td class="td-input"><input class="num-input" type="number" inputmode="numeric" data-field="transport" value="${transport||''}" placeholder="0" onchange="markUnsaved()"></td>
+      <td class="td-calc purchase" id="p-${key}">${purchase ? yenOrZero(purchase) : '—'}</td>
+      <td class="td-calc ${profitCls}" id="pr-${key}">${(sales||purchase) ? yenOrZero(profit) : '—'}</td>
+    `;
+
+    // Live recalc on input
+    tr.querySelectorAll('.num-input').forEach(inp => {
+      inp.addEventListener('input', () => recalcRow(key, tr));
+    });
+
+    tbody.appendChild(tr);
+  }
+
+  // Footer
+  const totalProfit = ts - tpu;
+  const tfoot = document.getElementById('tableFoot');
+  const profitCls = totalProfit >= 0 ? 'ft-profit' : 'ft-profit-neg';
+  tfoot.innerHTML = `<tr>
+    <td colspan="2" style="text-align:left;font-weight:700;letter-spacing:0.08em;color:var(--turmeric)">月　計</td>
+    <td>${yenOrZero(tc)}</td>
+    <td>${yenOrZero(tcd)}</td>
+    <td>${yenOrZero(te)}</td>
+    <td class="ft-sales">${yenOrZero(ts)}</td>
+    <td>${yenOrZero(tf)}</td>
+    <td>${yenOrZero(td)}</td>
+    <td>${yenOrZero(tm)}</td>
+    <td>${yenOrZero(ttr)}</td>
+    <td>${yenOrZero(tpu)}</td>
+    <td class="${profitCls}">${yenOrZero(totalProfit)}</td>
+  </tr>`;
+
+  // Sidebar
+  document.getElementById('sb-sales').textContent = yenOrZero(ts);
+  document.getElementById('sb-purchase').textContent = yenOrZero(tpu);
+  const sbProfit = document.getElementById('sb-profit');
+  sbProfit.textContent = yenOrZero(totalProfit);
+  sbProfit.className = 'stat-block-value ' + (totalProfit >= 0 ? 'green' : 'red');
+
+  // Stats panel
+  document.getElementById('st-sales').textContent = yenOrZero(ts);
+  document.getElementById('st-cash').textContent = yenOrZero(tc);
+  document.getElementById('st-card').textContent = yenOrZero(tcd);
+  document.getElementById('st-emoney').textContent = yenOrZero(te);
+  document.getElementById('st-days').textContent = tdays + '日';
+  document.getElementById('st-avg').textContent = tdays > 0 ? yenOrZero(ts/tdays) : '¥0';
+  document.getElementById('st-purchase').textContent = yenOrZero(tpu);
+  document.getElementById('st-food').textContent = yenOrZero(tf);
+  document.getElementById('st-drink').textContent = yenOrZero(td);
+  document.getElementById('st-misc').textContent = yenOrZero(tm);
+  document.getElementById('st-transport').textContent = yenOrZero(ttr);
+  document.getElementById('st-foodcost').textContent = ts > 0 ? (tpu/ts*100).toFixed(1)+'%' : '0%';
+  document.getElementById('st-profit').textContent = yenOrZero(totalProfit);
+  document.getElementById('st-margin').textContent = ts > 0 ? (totalProfit/ts*100).toFixed(1)+'%' : '0%';
+  document.getElementById('st-costrate').textContent = ts > 0 ? (tpu/ts*100).toFixed(1)+'%' : '0%';
+}
+
+function recalcRow(key, tr) {
+  const vals = {};
+  tr.querySelectorAll('.num-input').forEach(inp => {
+    vals[inp.dataset.field] = parseFloat(inp.value) || 0;
+  });
+  const sales = (vals.cash||0) + (vals.card||0) + (vals.emoney||0);
+  const purchase = (vals.food||0) + (vals.drink||0) + (vals.misc||0) + (vals.transport||0);
+  const profit = sales - purchase;
+
+  const sEl = document.getElementById(`s-${key}`);
+  const pEl = document.getElementById(`p-${key}`);
+  const prEl = document.getElementById(`pr-${key}`);
+
+  if (sEl) sEl.textContent = sales ? yenOrZero(sales) : '—';
+  if (pEl) pEl.textContent = purchase ? yenOrZero(purchase) : '—';
+  if (prEl) {
+    prEl.textContent = (sales||purchase) ? yenOrZero(profit) : '—';
+    prEl.className = 'td-calc ' + (profit > 0 ? 'profit-pos' : profit < 0 ? 'profit-neg' : 'zero');
+  }
+}
+
+function markUnsaved() {
+  unsaved = true;
+  document.getElementById('saveDot').classList.add('active');
+}
+
+function saveAll() {
+  // Collect all visible row data
+  document.querySelectorAll('#tableBody tr[data-key]').forEach(tr => {
+    const key = tr.dataset.key;
+    const vals = {};
+    tr.querySelectorAll('.num-input').forEach(inp => {
+      vals[inp.dataset.field] = parseFloat(inp.value) || 0;
+    });
+    data[key] = vals;
+  });
+  saveData();
+  unsaved = false;
+  document.getElementById('saveDot').classList.remove('active');
+  showToast('保存しました');
+  // Re-render totals
+  render();
+}
+
+function switchPanel(name) {
+  if (unsaved && name !== 'daily') {
+    saveAll();
+  }
+  ['daily','stats','export'].forEach(p => {
+    document.getElementById(`panel-${p}`).classList.toggle('active', p === name);
+    document.getElementById(`nav-${p}`).classList.toggle('active', p === name);
+  });
+  const titles = { daily: '日次売上・仕入れ入力', stats: 'サマリー', export: 'データ出力' };
+  document.getElementById('topbarTitle').textContent = titles[name];
+  if (name === 'stats') render();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function exportExcel() {
+  saveAll();
+  const wb = XLSX.utils.book_new();
+  const days = daysInMonth(currentYear, currentMonth);
+  const rows = [['日付','曜日','現金売上','カード売上','電子マネー','売上合計','食材仕入れ','飲料仕入れ','雑費','交通費','仕入・経費計','粗利']];
+  let ts=0,tpu=0,tc=0,tcd=0,te=0,tf=0,td=0,tm=0,ttr=0;
+  for (let d = 1; d <= days; d++) {
+    const key = dateKey(currentYear, currentMonth, d);
+    const rec = data[key] || {};
+    const wd = new Date(currentYear, currentMonth-1, d).getDay();
+    const cash=parseFloat(rec.cash)||0, card=parseFloat(rec.card)||0, emoney=parseFloat(rec.emoney)||0;
+    const food=parseFloat(rec.food)||0, drink=parseFloat(rec.drink)||0;
+    const misc=parseFloat(rec.misc)||0, transport=parseFloat(rec.transport)||0;
+    const sales=cash+card+emoney, purchase=food+drink+misc+transport;
+    ts+=sales; tpu+=purchase; tc+=cash; tcd+=card; te+=emoney; tf+=food; td+=drink; tm+=misc; ttr+=transport;
+    rows.push([`${currentMonth}/${d}`, WEEKDAYS[wd]+'曜', cash, card, emoney, sales, food, drink, misc, transport, purchase, sales-purchase]);
+  }
+  rows.push(['月計','', tc, tcd, te, ts, tf, td, tm, ttr, tpu, ts-tpu]);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = Array(12).fill({wch:12});
+  XLSX.utils.book_append_sheet(wb, ws, '日次売上・仕入れ');
+  XLSX.writeFile(wb, `売上管理_${currentYear}${String(currentMonth).padStart(2,'0')}.xlsx`);
+  showToast('Excelを出力しました');
+}
+
+function exportCSV() {
+  saveAll();
+  const lines = ['日付,曜日,現金売上,カード売上,電子マネー,売上合計,食材仕入れ,飲料仕入れ,雑費,交通費,仕入・経費計,粗利'];
+  Object.keys(data).sort().forEach(key => {
+    const [y, m, d] = key.split('-').map(Number);
+    const rec = data[key];
+    const wd = new Date(y, m-1, d).getDay();
+    const cash=parseFloat(rec.cash)||0, card=parseFloat(rec.card)||0, emoney=parseFloat(rec.emoney)||0;
+    const food=parseFloat(rec.food)||0, drink=parseFloat(rec.drink)||0;
+    const misc=parseFloat(rec.misc)||0, transport=parseFloat(rec.transport)||0;
+    const sales=cash+card+emoney, purchase=food+drink+misc+transport;
+    lines.push(`${key},${WEEKDAYS[wd]},${cash},${card},${emoney},${sales},${food},${drink},${misc},${transport},${purchase},${sales-purchase}`);
+  });
+  const blob = new Blob(['\uFEFF'+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = '売上管理_全データ.csv'; a.click();
+  showToast('CSVを出力しました');
+}
+
+function clearMonth() {
+  if (!confirm(`${currentYear}年${currentMonth}月のデータをすべて削除しますか？`)) return;
+  const days = daysInMonth(currentYear, currentMonth);
+  for (let d = 1; d <= days; d++) delete data[dateKey(currentYear, currentMonth, d)];
+  saveData(); render();
+  showToast('削除しました');
+}
+
+function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('importStatus');
+  status.style.display = 'block';
+  status.textContent = '読み込み中...';
+  status.style.color = 'var(--turmeric)';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result.replace(/^\uFEFF/, '');
+      const lines = text.trim().split('\n');
+      let count = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',');
+        if (cols.length < 2) continue;
+        const dateStr = cols[0].trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+
+        const rec = {
+          cash:      parseFloat(cols[2]) || 0,
+          card:      parseFloat(cols[3]) || 0,
+          emoney:    parseFloat(cols[4]) || 0,
+          food:      parseFloat(cols[6]) || 0,
+          drink:     parseFloat(cols[7]) || 0,
+          misc:      parseFloat(cols[8]) || 0,
+          transport: parseFloat(cols[9]) || 0,
+        };
+        const total = Object.values(rec).reduce((a,b) => a+b, 0);
+        if (total === 0) continue;
+        data[dateStr] = rec;
+        count++;
+      }
+
+      saveData();
+      status.textContent = `✓ ${count}件のデータをインポートしました`;
+      status.style.color = 'var(--cardamom)';
+      showToast(`${count}件をインポートしました`);
+      render();
+    } catch(err) {
+      status.textContent = '⚠ 読み込みに失敗しました。CSVの形式を確認してください。';
+      status.style.color = 'var(--red)';
+    }
+    input.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// Auto-save on Enter key between inputs
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    const inputs = Array.from(document.querySelectorAll('.num-input'));
+    const idx = inputs.indexOf(document.activeElement);
+    if (idx >= 0 && idx < inputs.length - 1) {
+      e.preventDefault();
+      inputs[idx + 1].focus();
+      inputs[idx + 1].select();
+    }
+  }
+});
+
+// Init with Firebase
+const now = new Date();
+currentYear = now.getFullYear();
+currentMonth = now.getMonth() + 1;
+
+function initFirebase() {
+  setStatus('🔄 同期中...', 'rgba(232,160,32,0.8)');
+  window._fbOnValue(window._fbRef(window._fbDb, 'sales'), (snapshot) => {
+    data = snapshot.val() || {};
+    unsaved = false;
+    document.getElementById('saveDot').classList.remove('active');
+    render();
+    setStatus('✓ 同期済み', '#7ec47a');
+    setTimeout(() => {
+      const todayRow = document.querySelector('.today-row');
+      if (todayRow) todayRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  }, () => {
+    setStatus('⚠ オフライン', '#f08080');
+    render();
+  });
+}
+
+if (window._firebaseReady) {
+  initFirebase();
+} else {
+  window.addEventListener('firebaseReady', initFirebase);
+}
+</script>
+</body>
+</html>
