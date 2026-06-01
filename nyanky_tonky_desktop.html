@@ -563,6 +563,26 @@ tfoot td.ft-profit-neg { color: #f08080; font-weight: 700; }
 </head>
 <body>
 
+<!-- Password Screen -->
+<div id="passwordScreen" style="
+  position:fixed;inset:0;background:#1c1408;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9999;padding:32px;
+">
+  <div style="color:var(--turmeric);font-size:11px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;">UMAMI SPICE CURRY</div>
+  <div style="font-family:'Shippori Mincho',serif;color:#f5ede0;font-size:26px;font-weight:700;margin-bottom:36px;">Nyankey Tonkey</div>
+  <input id="pwInput" type="password" placeholder="パスワードを入力"
+    style="width:100%;max-width:320px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);
+    border-radius:10px;padding:14px 18px;color:white;font-size:16px;text-align:center;outline:none;margin-bottom:12px;"
+    onkeydown="if(event.key==='Enter')checkPassword()">
+  <button onclick="checkPassword()" style="
+    width:100%;max-width:320px;background:var(--spice);color:white;border:none;
+    border-radius:10px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.05em;
+  ">ログイン</button>
+  <div id="pwError" style="color:#f08080;font-size:12px;margin-top:12px;display:none;">パスワードが違います</div>
+</div>
+
+<div id="mainApp" style="display:none;height:100vh;display:none;flex-direction:row;width:100%;">
 <!-- Sidebar -->
 <aside class="sidebar">
   <div class="sidebar-logo">
@@ -768,6 +788,8 @@ tfoot td.ft-profit-neg { color: #f08080; font-weight: 700; }
   </div>
 </main>
 
+</div><!-- /mainApp -->
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -775,6 +797,28 @@ const WEEKDAYS = ['日','月','火','水','木','金','土'];
 let currentYear, currentMonth;
 let data = {};
 let unsaved = false;
+
+const CORRECT_PW = 'SPmonkey359';
+
+function checkPassword() {
+  const input = document.getElementById('pwInput').value;
+  if (input === CORRECT_PW) {
+    document.getElementById('passwordScreen').style.display = 'none';
+    const main = document.getElementById('mainApp');
+    main.style.display = 'flex';
+    sessionStorage.setItem('nt_auth', '1');
+  } else {
+    document.getElementById('pwError').style.display = 'block';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+
+if (sessionStorage.getItem('nt_auth') === '1') {
+  document.getElementById('passwordScreen').style.display = 'none';
+  const main = document.getElementById('mainApp');
+  main.style.display = 'flex';
+}
 
 function setStatus(msg, color) {
   const el = document.getElementById('syncStatus');
